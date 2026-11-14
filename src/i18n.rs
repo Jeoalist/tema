@@ -1,35 +1,39 @@
 //! Basit iki dilli (Türkçe / English) çeviri.
 //! Kaynak metinler Türkçe yazılır; İngilizce seçiliyse `t()` tablodan karşılığını döner.
 //!
-//! Dil önceliği: TEMA_LANG ortam değişkeni → ~/.config/tema/lang → sistem dili (LC_ALL/LC_MESSAGES/LANG).
-//! Sistem dili "tr" ile başlamıyorsa İngilizce kullanılır.
+//! Dil önceliği: TEMA_LANG ortam değişkeni → ~/.config/tema/lang (Ayarlar'dan seçilir) → İngilizce (varsayılan).
 
 use std::fmt::Display;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-static EN: AtomicBool = AtomicBool::new(false);
+static EN: AtomicBool = AtomicBool::new(true);
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Pref {
-    System,
-    Tr,
     En,
+    Tr,
 }
 
 impl Pref {
-    pub const ALL: [Pref; 3] = [Pref::System, Pref::Tr, Pref::En];
+    /// Ayarlar'daki sıra
+    pub const ALL: [Pref; 2] = [Pref::En, Pref::Tr];
     pub fn code(self) -> &'static str {
         match self {
-            Pref::System => "system",
-            Pref::Tr => "tr",
             Pref::En => "en",
+            Pref::Tr => "tr",
         }
     }
-    fn from_code(s: &str) -> Pref {
-        match s.trim().to_lowercase().as_str() {
-            s if s.starts_with("tr") => Pref::Tr,
-            s if s.starts_with("en") => Pref::En,
-            _ => Pref::System,
+    pub fn label(self) -> &'static str {
+        match self {
+            Pref::En => "English",
+            Pref::Tr => "Türkçe",
+        }
+    }
+    fn from_code(s: &str) -> Option<Pref> {
+        match s.trim().to_lowercase() {
+            s if s.starts_with("tr") => Some(Pref::Tr),
+            s if s.starts_with("en") => Some(Pref::En),
+            _ => None,
         }
     }
 }
@@ -38,9 +42,9 @@ fn pref_file() -> std::path::PathBuf {
     crate::targets::cfg("tema/lang")
 }
 
-/// Kaydedilmiş tercih (yoksa System)
+/// Kaydedilmiş tercih (yoksa İngilizce)
 pub fn saved_pref() -> Pref {
-    std::fs::read_to_string(pref_file()).map(|s| Pref::from_code(&s)).unwrap_or(Pref::System)
+    std::fs::read_to_string(pref_file()).ok().and_then(|s| Pref::from_code(&s)).unwrap_or(Pref::En)
 }
 
 pub fn save_pref(p: Pref) {
@@ -48,24 +52,10 @@ pub fn save_pref(p: Pref) {
     let _ = std::fs::write(pref_file(), format!("{}\n", p.code()));
 }
 
-fn system_is_tr() -> bool {
-    ["LC_ALL", "LC_MESSAGES", "LANG"]
-        .iter()
-        .filter_map(|k| std::env::var(k).ok())
-        .find(|v| !v.is_empty())
-        .map(|v| v.to_lowercase().starts_with("tr"))
-        .unwrap_or(false)
-}
-
 /// Dili tercihe göre ayarlar (TEMA_LANG her şeyi ezer)
 pub fn apply_pref(p: Pref) {
-    let p = std::env::var("TEMA_LANG").map(|v| Pref::from_code(&v)).ok().filter(|p| *p != Pref::System).unwrap_or(p);
-    let en = match p {
-        Pref::Tr => false,
-        Pref::En => true,
-        Pref::System => !system_is_tr(),
-    };
-    EN.store(en, Ordering::Relaxed);
+    let p = std::env::var("TEMA_LANG").ok().and_then(|v| Pref::from_code(&v)).unwrap_or(p);
+    EN.store(p == Pref::En, Ordering::Relaxed);
 }
 
 pub fn init() {
@@ -178,11 +168,16 @@ const TABLE: &[(&str, &str)] = &[
     ("Yedekler", "Backups"),
     ("Tüm yedekleri geri yükle (.tema-bak)", "Restore all backups (.tema-bak)"),
     ("{} dosya yedekten geri yüklendi", "{} files restored from backup"),
+    // --- ayarlar sayfası
+    ("Ayarlar", "Settings"),
     ("Dil", "Language"),
     ("Arayüz dili", "Interface language"),
-    ("Sistem dili", "System language"),
-    ("Türkçe", "Türkçe"),
-    ("English", "English"),
+    ("Değiştirince pencere seçilen dille yeniden açılır.", "The window reopens in the chosen language."),
+    ("Hakkında", "About"),
+    ("Sürüm", "Version"),
+    ("Lisans", "License"),
+    ("Kaynak kodu", "Source code"),
+    ("Tüm masaüstü config'lerini tek paletten yönetir.", "Theme your whole desktop from a single palette."),
     // --- uygula
     ("Duvar kağıdı", "Wallpaper"),
     ("Tema uygulandı ({} hedef)", "Theme applied ({} targets)"),
@@ -190,8 +185,8 @@ const TABLE: &[(&str, &str)] = &[
     ("Tamam", "OK"),
     // --- CLI
     (
-        "tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\n\nDil: TEMA_LANG=tr|en",
-        "tema                  open the UI\ntema --list           list presets and installed GTK themes\ntema --apply <theme>  apply a preset headless (locks the palette)\ntema --page <wall|presets|colors|targets>  open the UI on a page\ntema --apply auto     generate from current wallpaper and apply (automatic mode)\ntema --apply gtk:<id>   apply an installed GTK theme and its palette\n\nLanguage: TEMA_LANG=tr|en",
+        "tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets|settings>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\n\nDil: TEMA_LANG=tr|en",
+        "tema                  open the UI\ntema --list           list presets and installed GTK themes\ntema --apply <theme>  apply a preset headless (locks the palette)\ntema --page <wall|presets|colors|targets|settings>  open the UI on a page\ntema --apply auto     generate from current wallpaper and apply (automatic mode)\ntema --apply gtk:<id>   apply an installed GTK theme and its palette\n\nLanguage: TEMA_LANG=tr|en",
     ),
     ("kullanım: tema --apply <tema adı | auto | gtk:<id>>", "usage: tema --apply <theme name | auto | gtk:<id>>"),
     ("duvar kağıdı bulunamadı", "no wallpaper found"),
@@ -234,6 +229,7 @@ mod tests {
     #[test]
     fn tf_fills_placeholders() {
         EN.store(true, Ordering::Relaxed);
+        assert_eq!(t("Ayarlar"), "Settings");
         assert_eq!(tf("{} tema bulundu", &[&3]), "3 themes found");
         EN.store(false, Ordering::Relaxed);
         assert_eq!(tf("{} tema bulundu", &[&3]), "3 tema bulundu");

@@ -2,7 +2,9 @@
 name = "tema"
 version = "0.1.0"
 edition = "2024"
-description = "Tüm masaüstü config'lerini tek paletten yöneten GTK uygulaması"
+description = "Theme your whole Hyprland desktop from a single palette (GTK4 / libadwaita)"
+license = "MIT"
+repository = "https://github.com/Jeoalist/tema"
 
 [dependencies]
 gtk = { package = "gtk4", version = "0.11", features = ["v4_12"] }

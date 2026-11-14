@@ -61,7 +61,7 @@ fn main() -> glib::ExitCode {
         }
         Some("--apply") => return cli_apply(args.get(2).map(String::as_str)),
         Some("-h" | "--help") => {
-            println!("{}", t("tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\n\nDil: TEMA_LANG=tr|en"));
+            println!("{}", t("tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets|settings>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\n\nDil: TEMA_LANG=tr|en"));
             return glib::ExitCode::SUCCESS;
         }
         _ => {}
@@ -712,28 +712,6 @@ fn page_targets(ui: &U) -> gtk::Widget {
     tools.add(&restore);
     page.add(&tools);
 
-    // Dil seçimi: değişince pencere yeni dille yeniden kurulur
-    let lang = adw::PreferencesGroup::builder().title(t("Dil")).build();
-    let model = gtk::StringList::new(&[t("Sistem dili"), "Türkçe", "English"]);
-    let current = i18n::saved_pref();
-    let row = adw::ComboRow::builder()
-        .title(t("Arayüz dili"))
-        .subtitle("Language")
-        .model(&model)
-        .selected(i18n::Pref::ALL.iter().position(|p| *p == current).unwrap_or(0) as u32)
-        .build();
-    {
-        let ui = ui.clone();
-        row.connect_selected_notify(move |r| {
-            let p = i18n::Pref::ALL[(r.selected() as usize).min(2)];
-            i18n::save_pref(p);
-            i18n::apply_pref(p);
-            let ui = ui.clone();
-            glib::idle_add_local_once(move || rebuild(&ui));
-        });
-    }
-    lang.add(&row);
-    page.add(&lang);
     page.upcast()
 }
 
@@ -742,7 +720,63 @@ fn rebuild(ui: &U) {
     let Some(win) = ui.window.borrow().clone() else { return };
     let Some(app) = win.application().and_downcast::<adw::Application>() else { return };
     win.destroy();
-    build(&app, Some("targets".into()));
+    build(&app, Some("settings".into()));
+}
+
+const REPO_URL: &str = "https://github.com/Jeoalist/tema";
+
+fn page_settings(ui: &U) -> gtk::Widget {
+    let page = adw::PreferencesPage::new();
+
+    // Dil: değişince pencere yeni dille yeniden kurulur
+    let lang = adw::PreferencesGroup::builder()
+        .title(t("Dil"))
+        .description(t("Değiştirince pencere seçilen dille yeniden açılır."))
+        .build();
+    let labels: Vec<&str> = i18n::Pref::ALL.iter().map(|p| p.label()).collect();
+    let model = gtk::StringList::new(&labels);
+    let current = i18n::saved_pref();
+    let row = adw::ComboRow::builder()
+        .title(t("Arayüz dili"))
+        .subtitle("Language · Dil")
+        .model(&model)
+        .selected(i18n::Pref::ALL.iter().position(|p| *p == current).unwrap_or(0) as u32)
+        .build();
+    {
+        let ui = ui.clone();
+        row.connect_selected_notify(move |r| {
+            let Some(p) = i18n::Pref::ALL.get(r.selected() as usize).copied() else { return };
+            if p == i18n::saved_pref() {
+                return;
+            }
+            i18n::save_pref(p);
+            i18n::apply_pref(p);
+            let ui = ui.clone();
+            glib::idle_add_local_once(move || rebuild(&ui));
+        });
+    }
+    lang.add(&row);
+    page.add(&lang);
+
+    // Hakkında
+    let about = adw::PreferencesGroup::builder()
+        .title(t("Hakkında"))
+        .description(t("Tüm masaüstü config'lerini tek paletten yönetir."))
+        .build();
+    let ver = adw::ActionRow::builder().title(t("Sürüm")).build();
+    ver.add_suffix(&label(env!("CARGO_PKG_VERSION"), &["dim-label"]));
+    about.add(&ver);
+    let lic = adw::ActionRow::builder().title(t("Lisans")).build();
+    lic.add_suffix(&label("MIT", &["dim-label"]));
+    about.add(&lic);
+    let src = adw::ActionRow::builder().title(t("Kaynak kodu")).subtitle(REPO_URL).activatable(true).build();
+    src.add_suffix(&gtk::Image::from_icon_name("adw-external-link-symbolic"));
+    src.connect_activated(|_| {
+        gtk::UriLauncher::new(REPO_URL).launch(gtk::Window::NONE, gio::Cancellable::NONE, |_| {});
+    });
+    about.add(&src);
+    page.add(&about);
+    page.upcast()
 }
 
 fn restore_backups() -> usize {
@@ -912,6 +946,7 @@ fn build(app: &adw::Application, page: Option<String>) {
     stack.add_titled_with_icon(&page_presets(&ui), Some("presets"), t("Hazır Temalar"), "applications-graphics-symbolic");
     stack.add_titled_with_icon(&page_colors(&ui), Some("colors"), t("Renkler"), "preferences-color-symbolic");
     stack.add_titled_with_icon(&page_targets(&ui), Some("targets"), t("Hedefler"), "emblem-system-symbolic");
+    stack.add_titled_with_icon(&page_settings(&ui), Some("settings"), t("Ayarlar"), "preferences-system-symbolic");
 
     let header = adw::HeaderBar::new();
     let switcher = adw::ViewSwitcher::builder().stack(&stack).policy(adw::ViewSwitcherPolicy::Wide).build();
@@ -949,6 +984,7 @@ fn build(app: &adw::Application, page: Option<String>) {
         adw::LengthUnit::Sp,
     ));
     bp.add_setter(&preview, "visible", Some(&false.to_value()));
+    bp.add_setter(&switcher, "policy", Some(&adw::ViewSwitcherPolicy::Narrow.to_value()));
     window.add_breakpoint(bp);
     window.set_size_request(360, 400);
 

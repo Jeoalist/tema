@@ -15,7 +15,7 @@ Pick a wallpaper, a preset or an installed GTK theme, tweak colors, hit **Uygula
 
 ## Language
 
-The UI and CLI speak **Türkçe** and **English**. Pick it under *Targets → Language* (switches live), or force it with `TEMA_LANG=tr|en`. By default it follows the system locale (`tr_*` → Turkish, anything else → English).
+English by default. Switch to **Türkçe** under *Settings → Language* (the window reopens in the new language; the choice is saved to `~/.config/tema/lang`). `TEMA_LANG=tr|en` overrides it for a single run.
 
 ## Palette sources
 
@@ -45,7 +45,7 @@ Every file is backed up to `<file>.tema-bak` on first write; "restore backups" i
 
 ```
 tema                         open the UI
-tema --page presets          open on a page (wall|presets|colors|targets)
+tema --page presets          open on a page (wall|presets|colors|targets|settings)
 tema --list                  list presets and installed GTK themes
 tema --apply "tokyo night"   apply a preset headless
 tema --apply auto            generate from current wallpaper
@@ -62,6 +62,10 @@ install -Dm755 target/release/tema ~/.local/bin/tema
 ```
 
 Requires GTK ≥ 4.12 and libadwaita ≥ 1.6.
+
+## License
+
+[MIT](LICENSE)
 
 ---
 
