@@ -15,6 +15,14 @@ use targets::{Target, cfg};
 
 const APP_ID: &str = "io.github.tema.Tema";
 
+/// println! gibi ama çıktı kapanınca (ör. `tema --list | head`) panic yerine sessizce geçer
+macro_rules! out {
+    ($($arg:tt)*) => {{
+        use std::io::Write;
+        let _ = writeln!(std::io::stdout(), $($arg)*);
+    }};
+}
+
 struct State {
     palette: Palette,
     source: String,
@@ -50,18 +58,18 @@ fn main() -> glib::ExitCode {
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
         Some("--list") => {
-            println!("auto");
+            out!("auto");
             for (n, _) in PRESETS {
-                println!("{n}");
+                out!("{n}");
             }
             for t in gtk_themes::scan() {
-                println!("gtk:{}", t.id);
+                out!("gtk:{}", t.id);
             }
             return glib::ExitCode::SUCCESS;
         }
         Some("--apply") => return cli_apply(args.get(2).map(String::as_str)),
         Some("-h" | "--help") => {
-            println!("{}", t("tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets|settings>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\n\nDil: TEMA_LANG=tr|en"));
+            out!("{}", t("tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets|settings>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\n\nDil: TEMA_LANG=tr|en"));
             return glib::ExitCode::SUCCESS;
         }
         _ => {}
@@ -839,7 +847,7 @@ fn cli_apply(name: Option<&str>) -> glib::ExitCode {
     for t in targets::ALL {
         if t.available() && !t.passive() {
             match t.apply(&palette, &source, gtk_choice.as_deref()) {
-                Ok(m) => println!("✓ {}: {m}", t.title()),
+                Ok(m) => out!("✓ {}: {m}", t.title()),
                 Err(e) => {
                     fail = true;
                     eprintln!("✗ {}: {e}", t.title())
