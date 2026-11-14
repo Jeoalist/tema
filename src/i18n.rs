@@ -185,9 +185,16 @@ const TABLE: &[(&str, &str)] = &[
     ("Tamam", "OK"),
     // --- CLI
     (
-        "tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets|settings>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\n\nDil: TEMA_LANG=tr|en",
-        "tema                  open the UI\ntema --list           list presets and installed GTK themes\ntema --apply <theme>  apply a preset headless (locks the palette)\ntema --page <wall|presets|colors|targets|settings>  open the UI on a page\ntema --apply auto     generate from current wallpaper and apply (automatic mode)\ntema --apply gtk:<id>   apply an installed GTK theme and its palette\n\nLanguage: TEMA_LANG=tr|en",
+        "tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets|settings>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\ntema --install        ~/.local/bin + uygulama menüsüne (fuzzel vb.) kurar\ntema --uninstall      menü kaydını, ikonu ve ~/.local/bin/tema dosyasını kaldırır\n\nDil: TEMA_LANG=tr|en",
+        "tema                  open the UI\ntema --list           list presets and installed GTK themes\ntema --apply <theme>  apply a preset headless (locks the palette)\ntema --page <wall|presets|colors|targets|settings>  open the UI on a page\ntema --apply auto     generate from current wallpaper and apply (automatic mode)\ntema --apply gtk:<id>   apply an installed GTK theme and its palette\ntema --install        install to ~/.local/bin and the app menu (fuzzel, …)\ntema --uninstall      remove the menu entry, icon and ~/.local/bin/tema\n\nLanguage: TEMA_LANG=tr|en",
     ),
+    ("Tema artık uygulama menüsünde (fuzzel, rofi, wofi…).", "Tema is now in your app menu (fuzzel, rofi, wofi…)."),
+    ("kaldırılacak bir şey bulunamadı", "nothing to remove"),
+    ("çalışan binary'nin yolu bulunamadı", "couldn't find the running binary's path"),
+    ("menü kaydı → {}", "menu entry → {}"),
+    ("ikon → {}", "icon → {}"),
+    ("not: ~/.local/bin PATH'te değil; terminalden `tema` yazmak için PATH'e ekle (menü yine de çalışır)", "note: ~/.local/bin is not in PATH; add it to run `tema` from a terminal (the menu works anyway)"),
+    ("silindi: {}", "removed: {}"),
     ("kullanım: tema --apply <tema adı | auto | gtk:<id>>", "usage: tema --apply <theme name | auto | gtk:<id>>"),
     ("duvar kağıdı bulunamadı", "no wallpaper found"),
     ("GTK teması bulunamadı: {} (tema --list)", "GTK theme not found: {} (tema --list)"),

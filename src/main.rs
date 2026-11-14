@@ -1,3 +1,4 @@
+mod desktop;
 mod gtk_themes;
 mod i18n;
 mod palette;
@@ -13,7 +14,7 @@ use std::rc::Rc;
 use i18n::{t, tf};
 use targets::{Target, cfg};
 
-const APP_ID: &str = "io.github.tema.Tema";
+use desktop::APP_ID;
 
 /// println! gibi ama çıktı kapanınca (ör. `tema --list | head`) panic yerine sessizce geçer
 macro_rules! out {
@@ -68,8 +69,33 @@ fn main() -> glib::ExitCode {
             return glib::ExitCode::SUCCESS;
         }
         Some("--apply") => return cli_apply(args.get(2).map(String::as_str)),
+        Some("--install") => {
+            return match desktop::install() {
+                Ok(lines) => {
+                    for l in lines {
+                        out!("✓ {l}");
+                    }
+                    out!("{}", t("Tema artık uygulama menüsünde (fuzzel, rofi, wofi…)."));
+                    glib::ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("✗ {e}");
+                    glib::ExitCode::FAILURE
+                }
+            };
+        }
+        Some("--uninstall") => {
+            let lines = desktop::uninstall();
+            if lines.is_empty() {
+                out!("{}", t("kaldırılacak bir şey bulunamadı"));
+            }
+            for l in lines {
+                out!("✓ {l}");
+            }
+            return glib::ExitCode::SUCCESS;
+        }
         Some("-h" | "--help") => {
-            out!("{}", t("tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets|settings>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\n\nDil: TEMA_LANG=tr|en"));
+            out!("{}", t("tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets|settings>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\ntema --install        ~/.local/bin + uygulama menüsüne (fuzzel vb.) kurar\ntema --uninstall      menü kaydını, ikonu ve ~/.local/bin/tema dosyasını kaldırır\n\nDil: TEMA_LANG=tr|en"));
             return glib::ExitCode::SUCCESS;
         }
         _ => {}
@@ -82,6 +108,8 @@ fn main() -> glib::ExitCode {
     if std::env::var_os("TEMA_NO_EXEC").is_some() {
         flags |= gio::ApplicationFlags::NON_UNIQUE; // test: açık pencereye bağlanma
     }
+    // Menü kaydı yoksa ya da bozuksa sessizce kur (fuzzel'da görünsün)
+    desktop::ensure_entry();
     let app = adw::Application::builder().application_id(APP_ID).flags(flags).build();
     app.connect_activate(move |app| build(app, page.clone()));
     // Kendi argümanlarımızı GApplication'a geçirme

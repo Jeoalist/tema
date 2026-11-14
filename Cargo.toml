@@ -1,6 +1,6 @@
 [package]
 name = "tema"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Theme your whole Hyprland desktop from a single palette (GTK4 / libadwaita)"
 license = "MIT"

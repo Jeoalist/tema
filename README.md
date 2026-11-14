@@ -47,6 +47,8 @@ Every file is backed up to `<file>.tema-bak` on first write; "restore backups" i
 tema                         open the UI
 tema --page presets          open on a page (wall|presets|colors|targets|settings)
 tema --list                  list presets and installed GTK themes
+tema --install               install to ~/.local/bin + app menu
+tema --uninstall             remove binary, menu entry and icon
 tema --apply "tokyo night"   apply a preset headless
 tema --apply auto            generate from current wallpaper
 tema --apply gtk:<theme-id>  apply an installed GTK theme + its palette
@@ -54,14 +56,26 @@ tema --apply gtk:<theme-id>  apply an installed GTK theme + its palette
 
 Set `TEMA_NO_EXEC=1` to skip all external commands (useful for testing with a fake `HOME`).
 
+## Install
+
+Download the binary from [Releases](https://github.com/Jeoalist/tema/releases/latest) and let it install itself:
+
+```
+curl -LO https://github.com/Jeoalist/tema/releases/latest/download/tema-linux-x86_64
+chmod +x tema-linux-x86_64
+./tema-linux-x86_64 --install
+```
+
+`--install` copies the binary to `~/.local/bin/tema` and adds a menu entry + icon (`~/.local/share/applications`, `~/.local/share/icons`), so Tema shows up in fuzzel, rofi, wofi and other launchers. `tema --uninstall` removes all of it. Opening the UI also repairs a missing or broken menu entry.
+
+Requires GTK ≥ 4.12 and libadwaita ≥ 1.6.
+
 ## Build
 
 ```
 cargo build --release
-install -Dm755 target/release/tema ~/.local/bin/tema
+./target/release/tema --install
 ```
-
-Requires GTK ≥ 4.12 and libadwaita ≥ 1.6.
 
 ## License
 
