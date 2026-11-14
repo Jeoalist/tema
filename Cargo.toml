@@ -1,0 +1,16 @@
+[package]
+name = "tema"
+version = "0.1.0"
+edition = "2024"
+description = "Tüm masaüstü config'lerini tek paletten yöneten GTK uygulaması"
+
+[dependencies]
+gtk = { package = "gtk4", version = "0.11", features = ["v4_12"] }
+adw = { package = "libadwaita", version = "0.9", features = ["v1_6"] }
+toml_edit = "0.25"
+regex = "1"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+strip = true
