@@ -897,8 +897,26 @@ fn apply(ui: &U) {
 
 // ------------------------------------------------------------------ pencere
 
+/// Çalışan ikili güncellendiyse (ör. `install` ile değiştirildiyse) /proc/self/exe "(deleted)" olur.
+fn binary_replaced() -> Option<PathBuf> {
+    let exe = std::fs::read_link("/proc/self/exe").ok()?;
+    let s = exe.to_string_lossy();
+    let path = PathBuf::from(s.strip_suffix(" (deleted)")?);
+    path.exists().then_some(path)
+}
+
 fn build(app: &adw::Application, page: Option<String>) {
     if let Some(w) = app.active_window() {
+        // Uygulama güncellenmişse eski pencereyi öne getirmek yerine yeni sürümle yeniden başla
+        if let Some(new_exe) = binary_replaced() {
+            let mut cmd = format!("sleep 0.4; exec '{}'", new_exe.display());
+            if let Some(p) = &page {
+                cmd += &format!(" --page '{p}'");
+            }
+            let _ = std::process::Command::new("setsid").args(["-f", "sh", "-c", &cmd]).spawn();
+            app.quit();
+            return;
+        }
         w.present();
         return;
     }
