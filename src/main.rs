@@ -1,4 +1,5 @@
 mod gtk_themes;
+mod i18n;
 mod palette;
 mod targets;
 
@@ -9,6 +10,7 @@ use std::cell::RefCell;
 use std::collections::HashSet;
 use std::path::PathBuf;
 use std::rc::Rc;
+use i18n::{t, tf};
 use targets::{Target, cfg};
 
 const APP_ID: &str = "io.github.tema.Tema";
@@ -44,6 +46,7 @@ struct Ui {
 type U = Rc<Ui>;
 
 fn main() -> glib::ExitCode {
+    i18n::init();
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(String::as_str) {
         Some("--list") => {
@@ -58,7 +61,7 @@ fn main() -> glib::ExitCode {
         }
         Some("--apply") => return cli_apply(args.get(2).map(String::as_str)),
         Some("-h" | "--help") => {
-            println!("tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular");
+            println!("{}", t("tema                  arayüzü açar\ntema --list           hazır temaları listeler\ntema --apply <tema>   hazır temayı arayüzsüz uygular (palet kilitlenir)\ntema --page <wall|presets|colors|targets>  arayüzü o sayfada açar\ntema --apply auto     mevcut duvar kağıdından üretip uygular (otomatik mod)\ntema --apply gtk:<id>   kurulu GTK temasını ve paletini uygular\n\nDil: TEMA_LANG=tr|en"));
             return glib::ExitCode::SUCCESS;
         }
         _ => {}
@@ -199,18 +202,15 @@ fn refresh(ui: &U) {
     }
     *ui.syncing.borrow_mut() = false;
 
-    let mode = if st.manual { "kilitli (duvar kağıdı değişse de palet sabit)" } else { "otomatik (duvar kağıdından)" };
-    let wp = if st.wallpaper_changed { "  ·  yeni duvar kağıdı bekliyor" } else { "" };
+    let mode = if st.manual { t("kilitli (duvar kağıdı değişse de palet sabit)") } else { t("otomatik (duvar kağıdından)") };
+    let wp = if st.wallpaper_changed { t("  ·  yeni duvar kağıdı bekliyor") } else { "" };
     let gtk = match &st.gtk_theme {
         Some(t) => format!("\n<b>GTK:</b> {}", glib::markup_escape_text(t)),
-        None => "\n<b>GTK:</b> palete en yakın kurulu tema".into(),
+        None => t("\n<b>GTK:</b> palete en yakın kurulu tema").into(),
     };
-    ui.info.set_markup(&format!(
+    ui.info.set_markup(&tf(
         "<b>Kaynak:</b> {}\n<b>Mod:</b> {}{}{}",
-        glib::markup_escape_text(&st.source),
-        mode,
-        wp,
-        gtk
+        &[&glib::markup_escape_text(&st.source), &mode, &wp, &gtk],
     ));
 }
 
@@ -282,17 +282,17 @@ fn build_preview(ui: &U) -> gtk::Widget {
         load_texture_with(targets::home().join(".face"), 144, 144, move |t| av.set_paintable(Some(t)));
     }
     card.append(&av);
-    let user = std::env::var("USER").unwrap_or_else(|_| "kullanıcı".into());
+    let user = std::env::var("USER").unwrap_or_else(|_| t("kullanıcı").into());
     card.append(&label(&user, &["pv-text"]));
-    card.append(&label("Kontrol Merkezi", &["pv-sub"]));
+    card.append(&label(t("Kontrol Merkezi"), &["pv-sub"]));
     let row = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let inp = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     inp.add_css_class("pv-input");
     inp.set_hexpand(true);
     inp.append(&label("󰌾", &["pv-accent", "mono"]));
-    inp.append(&label("Şifre", &["pv-muted"]));
+    inp.append(&label(t("Şifre"), &["pv-muted"]));
     row.append(&inp);
-    row.append(&label("Giriş", &["pv-btn"]));
+    row.append(&label(t("Giriş"), &["pv-btn"]));
     card.append(&row);
     let pills = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     pills.set_halign(gtk::Align::Center);
@@ -305,7 +305,7 @@ fn build_preview(ui: &U) -> gtk::Widget {
     let term = gtk::Box::new(gtk::Orientation::Vertical, 8);
     term.add_css_class("pv-term");
     let prompt = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-    prompt.append(&label("~/Projeler", &["pv-accent", "mono"]));
+    prompt.append(&label(t("~/Projeler"), &["pv-accent", "mono"]));
     prompt.append(&label(" main", &["pv-alt", "mono"]));
     prompt.append(&label("❯", &["pv-ok", "mono"]));
     prompt.append(&label("cargo run", &["pv-text", "mono"]));
@@ -345,8 +345,8 @@ fn page_wallpapers(ui: &U) -> gtk::Widget {
 
     let group = adw::PreferencesGroup::new();
     let gen_row = adw::SwitchRow::builder()
-        .title("Paleti duvar kağıdından üret")
-        .subtitle("AGS'nin theme-generator.py algoritmasıyla")
+        .title(t("Paleti duvar kağıdından üret"))
+        .subtitle(t("AGS'nin theme-generator.py algoritmasıyla"))
         .active(true)
         .build();
     {
@@ -409,10 +409,10 @@ fn page_wallpapers(ui: &U) -> gtk::Widget {
                     Ok(Ok(p)) => {
                         ui2.state.borrow_mut().gtk_theme = None;
                         set_palette(&ui2, p, &name, false);
-                        toast(&ui2, "Palet duvar kağıdından üretildi — Uygula'ya bas");
+                        toast(&ui2, t("Palet duvar kağıdından üretildi — Uygula'ya bas"));
                     }
-                    Ok(Err(e)) => toast(&ui2, &format!("Palet üretilemedi: {e}")),
-                    Err(_) => toast(&ui2, "Palet üretilemedi"),
+                    Ok(Err(e)) => toast(&ui2, &tf("Palet üretilemedi: {}", &[&e])),
+                    Err(_) => toast(&ui2, t("Palet üretilemedi")),
                 }
             });
         });
@@ -486,7 +486,7 @@ fn swatch_css(prefix: &str, p: &Palette) -> String {
 fn auto_palette(ui: &U) {
     let wall = ui.state.borrow().wallpaper.clone().or_else(targets::current_wallpaper);
     let Some(wall) = wall else {
-        toast(ui, "Duvar kağıdı bulunamadı");
+        toast(ui, t("Duvar kağıdı bulunamadı"));
         return;
     };
     let ui = ui.clone();
@@ -498,11 +498,11 @@ fn auto_palette(ui: &U) {
                 let name = wall.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
                 ui.auto_provider.load_from_string(&swatch_css("auto", &p));
                 ui.state.borrow_mut().gtk_theme = None;
-                set_palette(&ui, p, &format!("Otomatik · {name}"), false);
-                toast(&ui, "Otomatik mod — Uygula'ya bas");
+                set_palette(&ui, p, &tf("Otomatik · {}", &[&name]), false);
+                toast(&ui, t("Otomatik mod — Uygula'ya bas"));
             }
-            Ok(Err(e)) => toast(&ui, &format!("Palet üretilemedi: {e}")),
-            Err(_) => toast(&ui, "Palet üretilemedi"),
+            Ok(Err(e)) => toast(&ui, &tf("Palet üretilemedi: {}", &[&e])),
+            Err(_) => toast(&ui, t("Palet üretilemedi")),
         }
     });
 }
@@ -519,17 +519,17 @@ fn fill_gtk_flow(ui: &U, flow: &gtk::FlowBox, count: &gtk::Label) {
         let css: String = themes.iter().enumerate().map(|(i, t)| swatch_css(&format!("gt-{i}"), &t.palette)).collect();
         ui.gtk_provider.load_from_string(&css);
         flow.remove_all();
-        count.set_text(&format!("{} tema bulundu", themes.len()));
+        count.set_text(&tf("{} tema bulundu", &[&themes.len()]));
         for (i, t) in themes.into_iter().enumerate() {
             let active = current.as_deref() == Some(t.id.as_str());
-            let sub = if active { format!("● aktif · {}", t.id) } else { t.id.clone() };
+            let sub = if active { tf("● aktif · {}", &[&t.id]) } else { t.id.clone() };
             let btn = palette_card(&t.pretty(), Some(&sub), &format!("gt-{i}"));
             btn.set_tooltip_text(Some(&t.dir.display().to_string()));
             let ui = ui.clone();
             btn.connect_clicked(move |_| {
                 ui.state.borrow_mut().gtk_theme = Some(t.id.clone());
                 set_palette(&ui, t.palette.clone(), &format!("GTK · {}", t.pretty()), true);
-                toast(&ui, &format!("{} seçildi — Uygula'ya bas", t.pretty()));
+                toast(&ui, &tf("{} seçildi — Uygula'ya bas", &[&t.pretty()]));
             });
             flow.append(&btn);
         }
@@ -544,8 +544,8 @@ fn page_presets(ui: &U) -> gtk::Widget {
     col.set_margin_bottom(16);
 
     // --- Otomatik
-    col.append(&section("Otomatik", "Renkler duvar kağıdından üretilir; AGS duvar kağıdı her değiştiğinde kendini günceller."));
-    let auto = palette_card("Otomatik (duvar kağıdından)", Some("AGS theme-generator"), "auto");
+    col.append(&section(t("Otomatik"), t("Renkler duvar kağıdından üretilir; AGS duvar kağıdı her değiştiğinde kendini günceller.")));
+    let auto = palette_card(t("Otomatik (duvar kağıdından)"), Some("AGS theme-generator"), "auto");
     {
         let ui2 = ui.clone();
         auto.connect_clicked(move |_| auto_palette(&ui2));
@@ -564,7 +564,7 @@ fn page_presets(ui: &U) -> gtk::Widget {
     }
 
     // --- Hazır paletler
-    col.append(&section("Hazır paletler", "Paleti kilitler; duvar kağıdı değişse de renkler sabit kalır."));
+    col.append(&section(t("Hazır paletler"), t("Paleti kilitler; duvar kağıdı değişse de renkler sabit kalır.")));
     let flow = preset_flow();
     for (i, (name, f)) in PRESETS.iter().enumerate() {
         let btn = palette_card(name, None, &format!("ps-{i}"));
@@ -573,7 +573,7 @@ fn page_presets(ui: &U) -> gtk::Widget {
         btn.connect_clicked(move |_| {
             ui.state.borrow_mut().gtk_theme = None;
             set_palette(&ui, f(), name, true);
-            toast(&ui, &format!("{name} seçildi — Uygula'ya bas"));
+            toast(&ui, &tf("{} seçildi — Uygula'ya bas", &[name]));
         });
         flow.append(&btn);
     }
@@ -581,8 +581,8 @@ fn page_presets(ui: &U) -> gtk::Widget {
 
     // --- Kurulu GTK temaları (klasörler izleniyor: yeni tema kurulunca kendiliğinden eklenir)
     let gs = section(
-        "Kurulu GTK temaları",
-        "/usr/share/themes, ~/.themes ve ~/.local/share/themes izleniyor — yeni kurulan tema burada kendiliğinden belirir. Seçince palet temadan alınır ve o GTK teması uygulanır.",
+        t("Kurulu GTK temaları"),
+        t("/usr/share/themes, ~/.themes ve ~/.local/share/themes izleniyor — yeni kurulan tema burada kendiliğinden belirir. Seçince palet temadan alınır ve o GTK teması uygulanır."),
     );
     let count = label("", &["dim-label", "caption"]);
     count.set_xalign(0.0);
@@ -606,7 +606,7 @@ fn page_presets(ui: &U) -> gtk::Widget {
             glib::timeout_add_local_once(std::time::Duration::from_millis(800), move || {
                 ui3.rescan_pending.replace(false);
                 fill_gtk_flow(&ui3, &g3, &c3);
-                toast(&ui3, "GTK temaları yeniden tarandı");
+                toast(&ui3, t("GTK temaları yeniden tarandı"));
             });
         });
         ui.monitors.borrow_mut().push(mon);
@@ -618,12 +618,12 @@ fn page_presets(ui: &U) -> gtk::Widget {
 fn page_colors(ui: &U) -> gtk::Widget {
     let page = adw::PreferencesPage::new();
     let group = adw::PreferencesGroup::builder()
-        .title("Palet")
-        .description("Bir rengi değiştirmek paleti kilitler: AGS artık duvar kağıdından renk üretmez.")
+        .title(t("Palet"))
+        .description(t("Bir rengi değiştirmek paleti kilitler: AGS artık duvar kağıdından renk üretmez."))
         .build();
 
     for (i, (_key, title)) in KEYS.iter().enumerate() {
-        let row = adw::ActionRow::builder().title(*title).subtitle(KEYS[i].0).build();
+        let row = adw::ActionRow::builder().title(t(title)).subtitle(KEYS[i].0).build();
         let hex = label("", &["mono", "dim-label"]);
         let btn = gtk::ColorDialogButton::new(Some(gtk::ColorDialog::builder().with_alpha(false).build()));
         btn.set_valign(gtk::Align::Center);
@@ -640,7 +640,7 @@ fn page_colors(ui: &U) -> gtk::Widget {
                 return;
             }
             p.0[i] = rgb;
-            set_palette(&ui2, p, "elle düzenlendi", true);
+            set_palette(&ui2, p, t("elle düzenlendi"), true);
         });
         row.add_suffix(&hex);
         row.add_suffix(&btn);
@@ -651,24 +651,24 @@ fn page_colors(ui: &U) -> gtk::Widget {
     }
     page.add(&group);
 
-    let tools = adw::PreferencesGroup::builder().title("Araçlar").build();
-    let reload = adw::ButtonRow::builder().title("Mevcut colors.css'i yeniden yükle").start_icon_name("view-refresh-symbolic").build();
+    let tools = adw::PreferencesGroup::builder().title(t("Araçlar")).build();
+    let reload = adw::ButtonRow::builder().title(t("Mevcut colors.css'i yeniden yükle")).start_icon_name("view-refresh-symbolic").build();
     {
         let ui = ui.clone();
         reload.connect_activated(move |_| {
             let css = std::fs::read_to_string(cfg("ags/colors.css")).unwrap_or_default();
             set_palette(&ui, Palette::from_colors_css(&css), "colors.css", targets::is_manual());
-            toast(&ui, "colors.css yüklendi");
+            toast(&ui, t("colors.css yüklendi"));
         });
     }
     tools.add(&reload);
-    let unlock = adw::ButtonRow::builder().title("Kilidi aç: duvar kağıdından otomatik renk").start_icon_name("changes-allow-symbolic").build();
+    let unlock = adw::ButtonRow::builder().title(t("Kilidi aç: duvar kağıdından otomatik renk")).start_icon_name("changes-allow-symbolic").build();
     {
         let ui = ui.clone();
         unlock.connect_activated(move |_| {
             ui.state.borrow_mut().manual = false;
             refresh(&ui);
-            toast(&ui, "Uygula'ya basınca otomatik moda geçer");
+            toast(&ui, t("Uygula'ya basınca otomatik moda geçer"));
         });
     }
     tools.add(&unlock);
@@ -679,14 +679,14 @@ fn page_colors(ui: &U) -> gtk::Widget {
 fn page_targets(ui: &U) -> gtk::Widget {
     let page = adw::PreferencesPage::new();
     let group = adw::PreferencesGroup::builder()
-        .title("Uygulanacak yerler")
-        .description("Her dosya ilk değişiklikte &lt;dosya&gt;.tema-bak olarak yedeklenir.")
+        .title(t("Uygulanacak yerler"))
+        .description(t("Her dosya ilk değişiklikte &lt;dosya&gt;.tema-bak olarak yedeklenir."))
         .build();
     for t in targets::ALL {
         let ok = t.available();
         let row = adw::SwitchRow::builder()
             .title(t.title())
-            .subtitle(if ok { t.subtitle() } else { format!("bulunamadı: {}", t.subtitle()) })
+            .subtitle(if ok { t.subtitle() } else { tf("bulunamadı: {}", &[&t.subtitle()]) })
             .active(ok)
             .sensitive(ok && !t.passive())
             .build();
@@ -699,19 +699,50 @@ fn page_targets(ui: &U) -> gtk::Widget {
     }
     page.add(&group);
 
-    let tools = adw::PreferencesGroup::builder().title("Yedekler").build();
-    let restore = adw::ButtonRow::builder().title("Tüm yedekleri geri yükle (.tema-bak)").start_icon_name("edit-undo-symbolic").build();
+    let tools = adw::PreferencesGroup::builder().title(t("Yedekler")).build();
+    let restore = adw::ButtonRow::builder().title(t("Tüm yedekleri geri yükle (.tema-bak)")).start_icon_name("edit-undo-symbolic").build();
     restore.add_css_class("destructive-action");
     {
         let ui = ui.clone();
         restore.connect_activated(move |_| {
             let n = restore_backups();
-            toast(&ui, &format!("{n} dosya yedekten geri yüklendi"));
+            toast(&ui, &tf("{} dosya yedekten geri yüklendi", &[&n]));
         });
     }
     tools.add(&restore);
     page.add(&tools);
+
+    // Dil seçimi: değişince pencere yeni dille yeniden kurulur
+    let lang = adw::PreferencesGroup::builder().title(t("Dil")).build();
+    let model = gtk::StringList::new(&[t("Sistem dili"), "Türkçe", "English"]);
+    let current = i18n::saved_pref();
+    let row = adw::ComboRow::builder()
+        .title(t("Arayüz dili"))
+        .subtitle("Language")
+        .model(&model)
+        .selected(i18n::Pref::ALL.iter().position(|p| *p == current).unwrap_or(0) as u32)
+        .build();
+    {
+        let ui = ui.clone();
+        row.connect_selected_notify(move |r| {
+            let p = i18n::Pref::ALL[(r.selected() as usize).min(2)];
+            i18n::save_pref(p);
+            i18n::apply_pref(p);
+            let ui = ui.clone();
+            glib::idle_add_local_once(move || rebuild(&ui));
+        });
+    }
+    lang.add(&row);
+    page.add(&lang);
     page.upcast()
+}
+
+/// Pencereyi kapatıp aynı sayfada yeniden kurar (dil değişimi için)
+fn rebuild(ui: &U) {
+    let Some(win) = ui.window.borrow().clone() else { return };
+    let Some(app) = win.application().and_downcast::<adw::Application>() else { return };
+    win.destroy();
+    build(&app, Some("targets".into()));
 }
 
 fn restore_backups() -> usize {
@@ -733,13 +764,13 @@ fn restore_backups() -> usize {
 
 fn cli_apply(name: Option<&str>) -> glib::ExitCode {
     let Some(name) = name else {
-        eprintln!("kullanım: tema --apply <tema adı | wallpaper>");
+        eprintln!("{}", t("kullanım: tema --apply <tema adı | auto | gtk:<id>>"));
         return glib::ExitCode::FAILURE;
     };
     let mut gtk_choice: Option<String> = None;
     let (palette, source, manual) = if name == "wallpaper" || name == "auto" {
         let Some(w) = targets::current_wallpaper() else {
-            eprintln!("duvar kağıdı bulunamadı");
+            eprintln!("{}", t("duvar kağıdı bulunamadı"));
             return glib::ExitCode::FAILURE;
         };
         match Palette::from_wallpaper(&cfg("ags/scripts/theme-generator.py"), &w) {
@@ -756,7 +787,7 @@ fn cli_apply(name: Option<&str>) -> glib::ExitCode {
                 (t.palette.clone(), format!("GTK · {}", t.pretty()), true)
             }
             None => {
-                eprintln!("GTK teması bulunamadı: {id} (tema --list)");
+                eprintln!("{}", tf("GTK teması bulunamadı: {} (tema --list)", &[&id]));
                 return glib::ExitCode::FAILURE;
             }
         }
@@ -764,7 +795,7 @@ fn cli_apply(name: Option<&str>) -> glib::ExitCode {
         match PRESETS.iter().find(|(n, _)| n.eq_ignore_ascii_case(name)) {
             Some((n, f)) => (f(), n.to_string(), true),
             None => {
-                eprintln!("bilinmeyen tema: {name} (tema --list)");
+                eprintln!("{}", tf("bilinmeyen tema: {} (tema --list)", &[&name]));
                 return glib::ExitCode::FAILURE;
             }
         }
@@ -799,7 +830,7 @@ fn apply(ui: &U) {
             // Mod dosyası duvar kağıdından ÖNCE yazılmalı: AGS hyprpaper.conf'u izliyor
             targets::set_mode(manual);
             if let Some(w) = wall {
-                out.push(("Duvar kağıdı".into(), targets::set_wallpaper(&w)));
+                out.push((t("Duvar kağıdı").into(), targets::set_wallpaper(&w)));
             }
             for t in targets::ALL {
                 if enabled.contains(&t) && t.available() && !t.passive() {
@@ -819,10 +850,10 @@ fn apply(ui: &U) {
             .filter_map(|(n, r)| r.as_ref().err().map(|e| format!("• {n}: {e}")))
             .collect();
         if errs.is_empty() {
-            toast(&ui, &format!("Tema uygulandı ({} hedef)", report.len()));
+            toast(&ui, &tf("Tema uygulandı ({} hedef)", &[&report.len()]));
         } else {
-            let d = adw::AlertDialog::new(Some("Bazı hedefler uygulanamadı"), Some(&errs.join("\n")));
-            d.add_response("ok", "Tamam");
+            let d = adw::AlertDialog::new(Some(t("Bazı hedefler uygulanamadı")), Some(&errs.join("\n")));
+            d.add_response("ok", t("Tamam"));
             if let Some(w) = ui.window.borrow().as_ref() {
                 d.present(Some(w));
             }
@@ -850,7 +881,7 @@ fn build(app: &adw::Application, page: Option<String>) {
     let ui: U = Rc::new(Ui {
         state: RefCell::new(State {
             palette: Palette::from_colors_css(&css),
-            source: "mevcut colors.css".into(),
+            source: t("mevcut colors.css").into(),
             manual: targets::is_manual(),
             wallpaper: targets::current_wallpaper(),
             wallpaper_changed: false,
@@ -865,7 +896,7 @@ fn build(app: &adw::Application, page: Option<String>) {
         info: gtk::Label::new(None),
         preview_pic: gtk::Picture::new(),
         toasts: adw::ToastOverlay::new(),
-        apply_btn: gtk::Button::with_label("Uygula"),
+        apply_btn: gtk::Button::with_label(t("Uygula")),
         window: RefCell::new(None),
         auto_provider: gtk::CssProvider::new(),
         gtk_provider: gtk::CssProvider::new(),
@@ -877,10 +908,10 @@ fn build(app: &adw::Application, page: Option<String>) {
     }
 
     let stack = adw::ViewStack::new();
-    stack.add_titled_with_icon(&page_wallpapers(&ui), Some("wall"), "Duvar Kağıdı", "image-x-generic-symbolic");
-    stack.add_titled_with_icon(&page_presets(&ui), Some("presets"), "Hazır Temalar", "applications-graphics-symbolic");
-    stack.add_titled_with_icon(&page_colors(&ui), Some("colors"), "Renkler", "preferences-color-symbolic");
-    stack.add_titled_with_icon(&page_targets(&ui), Some("targets"), "Hedefler", "emblem-system-symbolic");
+    stack.add_titled_with_icon(&page_wallpapers(&ui), Some("wall"), t("Duvar Kağıdı"), "image-x-generic-symbolic");
+    stack.add_titled_with_icon(&page_presets(&ui), Some("presets"), t("Hazır Temalar"), "applications-graphics-symbolic");
+    stack.add_titled_with_icon(&page_colors(&ui), Some("colors"), t("Renkler"), "preferences-color-symbolic");
+    stack.add_titled_with_icon(&page_targets(&ui), Some("targets"), t("Hedefler"), "emblem-system-symbolic");
 
     let header = adw::HeaderBar::new();
     let switcher = adw::ViewSwitcher::builder().stack(&stack).policy(adw::ViewSwitcherPolicy::Wide).build();

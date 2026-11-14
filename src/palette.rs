@@ -117,7 +117,7 @@ for k,v in m.generate_palette(sys.argv[2]).items(): print(f'{k}={v}')";
             .arg(generator)
             .arg(image)
             .output()
-            .map_err(|e| format!("python3 çalıştırılamadı: {e}"))?;
+            .map_err(|e| crate::i18n::tf("python3 çalıştırılamadı: {}", &[&e]))?;
         if !out.status.success() {
             return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
         }

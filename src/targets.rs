@@ -1,6 +1,7 @@
 //! Paleti her config dosyasına yazan hedefler.
 //! Her dosya ilk değiştirilişinde `<dosya>.tema-bak` olarak yedeklenir.
 
+use crate::i18n::{t, tf};
 use crate::palette::{Palette, Rgb};
 use regex::Regex;
 use std::fs;
@@ -40,14 +41,14 @@ pub const ALL: [Target; 8] = [
 impl Target {
     pub fn title(self) -> &'static str {
         match self {
-            Target::Ags => "AGS (bar, kontrol merkezi, Gemini)",
-            Target::Hyprland => "Hyprland pencere kenarlıkları",
+            Target::Ags => t("AGS (bar, kontrol merkezi, Gemini)"),
+            Target::Hyprland => t("Hyprland pencere kenarlıkları"),
             Target::Ghostty => "Ghostty terminal",
             Target::Waybar => "Waybar",
-            Target::Fuzzel => "Fuzzel başlatıcı",
+            Target::Fuzzel => t("Fuzzel başlatıcı"),
             Target::Starship => "Starship prompt",
-            Target::Gtk => "GTK teması",
-            Target::Sddm => "SDDM giriş ekranı",
+            Target::Gtk => t("GTK teması"),
+            Target::Sddm => t("SDDM giriş ekranı"),
         }
     }
     pub fn path(self) -> PathBuf {
@@ -64,8 +65,8 @@ impl Target {
     }
     pub fn subtitle(self) -> String {
         match self {
-            Target::Sddm => "AGS colors.css değişince sddm-ags-sync otomatik günceller".into(),
-            Target::Gtk => "Seçilen GTK teması, yoksa palete en yakın kurulu tema (GTK3 + GTK4)".into(),
+            Target::Sddm => t("AGS colors.css değişince sddm-ags-sync otomatik günceller").into(),
+            Target::Gtk => t("Seçilen GTK teması, yoksa palete en yakın kurulu tema (GTK3 + GTK4)").into(),
             t => t.path().display().to_string().replace(&home().display().to_string(), "~"),
         }
     }
@@ -86,7 +87,7 @@ impl Target {
             Target::Fuzzel => fuzzel(p),
             Target::Starship => starship(p),
             Target::Gtk => gtk(p, gtk_theme),
-            Target::Sddm => Ok("AGS üzerinden senkronlanıyor".into()),
+            Target::Sddm => Ok(t("AGS üzerinden senkronlanıyor").into()),
         }
     }
 }
@@ -102,7 +103,7 @@ pub fn write(path: &Path, content: &str) -> Result<(), String> {
     if path.exists() {
         let bak = PathBuf::from(format!("{}.tema-bak", path.display()));
         if !bak.exists() {
-            fs::copy(path, &bak).map_err(|e| format!("yedek alınamadı: {e}"))?;
+            fs::copy(path, &bak).map_err(|e| tf("yedek alınamadı: {}", &[&e]))?;
         }
     }
     if let Some(dir) = path.parent() {
@@ -143,7 +144,7 @@ fn ags(p: &Palette, source: &str) -> Result<String, String> {
     }
     let a = run_quiet("ags", &["request", "reload-css"]);
     run_quiet("ags", &["request", "-i", "gemini", "reload-css"]);
-    Ok(if a { "yazıldı, CSS canlı yenilendi".into() } else { "yazıldı (AGS çalışmıyor)".into() })
+    Ok(if a { t("yazıldı, CSS canlı yenilendi").into() } else { t("yazıldı (AGS çalışmıyor)").into() })
 }
 
 fn hyprland(p: &Palette) -> Result<String, String> {
@@ -152,7 +153,7 @@ fn hyprland(p: &Palette) -> Result<String, String> {
     let act = Regex::new(r"(?m)^(\s*)active_border\s*=.*$").unwrap();
     let ina = Regex::new(r"(?m)^(\s*)inactive_border\s*=.*$").unwrap();
     if !act.is_match(&src) {
-        return Err("hyprland.lua içinde active_border satırı bulunamadı".into());
+        return Err(t("hyprland.lua içinde active_border satırı bulunamadı").into());
     }
     let a_line = format!(
         "${{1}}active_border   = {{ colors = {{\"{}\", \"{}\"}}, angle = 45 }},",
@@ -164,12 +165,12 @@ fn hyprland(p: &Palette) -> Result<String, String> {
     let out = ina.replacen(&out, 1, i_line.as_str()).to_string();
     write(&path, &out)?;
     run_quiet("hyprctl", &["reload"]);
-    Ok("kenarlıklar güncellendi, hyprctl reload".into())
+    Ok(t("kenarlıklar güncellendi, hyprctl reload").into())
 }
 
 fn ghostty(p: &Palette) -> Result<String, String> {
     let dir = cfg("ghostty");
-    let mut s = String::from("# tema uygulaması tarafından üretildi — elle düzenleme, üzerine yazılır\n");
+    let mut s = String::from(t("# tema uygulaması tarafından üretildi — elle düzenleme, üzerine yazılır\n"));
     s += &format!("background = {}\n", p.bg().hex());
     s += &format!("foreground = {}\n", p.text().hex());
     s += &format!("cursor-color = {}\n", p.accent().hex());
@@ -189,11 +190,11 @@ fn ghostty(p: &Palette) -> Result<String, String> {
         if !out.ends_with('\n') {
             out.push('\n');
         }
-        out += "\n# tema uygulaması renkleri\nconfig-file = ?tema-colors.ghostty\n";
+        out += t("\n# tema uygulaması renkleri\nconfig-file = ?tema-colors.ghostty\n");
         write(&main, &out)?;
     }
     run_quiet("pkill", &["-USR2", "-x", "ghostty"]);
-    Ok("renkler yazıldı, açık terminaller yenilendi".into())
+    Ok(t("renkler yazıldı, açık terminaller yenilendi").into())
 }
 
 fn waybar(p: &Palette) -> Result<String, String> {
@@ -209,7 +210,7 @@ fn waybar(p: &Palette) -> Result<String, String> {
     }
     write(&path, &src)?;
     run_quiet("pkill", &["-USR2", "-x", "waybar"]);
-    Ok(format!("{n} renk değişkeni güncellendi"))
+    Ok(tf("{} renk değişkeni güncellendi", &[&n]))
 }
 
 fn fuzzel(p: &Palette) -> Result<String, String> {
@@ -230,7 +231,7 @@ fn fuzzel(p: &Palette) -> Result<String, String> {
         src = re.replace_all(&src, format!("{k}={v}").as_str()).to_string();
     }
     write(&path, &src)?;
-    Ok("bir sonraki açılışta geçerli".into())
+    Ok(t("bir sonraki açılışta geçerli").into())
 }
 
 fn starship(p: &Palette) -> Result<String, String> {
@@ -270,17 +271,17 @@ fn starship(p: &Palette) -> Result<String, String> {
 fn gtk(p: &Palette, chosen: Option<&str>) -> Result<String, String> {
     let themes = crate::gtk_themes::scan();
     let theme = match chosen {
-        Some(id) => themes.iter().find(|t| t.id == id).ok_or(format!("{id} bulunamadı"))?,
+        Some(id) => themes.iter().find(|t| t.id == id).ok_or(tf("{} bulunamadı", &[&id]))?,
         // Vurgu rengi ağırlıklı, arka plan da hesaba katılarak en yakın tema
         None => themes
             .iter()
             .min_by_key(|t| t.palette.accent().dist(p.accent()) * 2 + t.palette.bg().dist(p.bg()))
-            .ok_or("kurulu GTK teması bulunamadı")?,
+            .ok_or(t("kurulu GTK teması bulunamadı"))?,
     };
     let ok = run_quiet("gsettings", &["set", "org.gnome.desktop.interface", "gtk-theme", &theme.id])
         && run_quiet("gsettings", &["set", "org.gnome.desktop.interface", "color-scheme", "prefer-dark"]);
     if !ok {
-        return Err("gsettings başarısız".into());
+        return Err(t("gsettings başarısız").into());
     }
     let gtk4 = link_gtk4(&theme.dir);
     Ok(format!("{}{gtk4}", theme.id))
@@ -304,7 +305,7 @@ fn link_gtk4(theme_dir: &Path) -> String {
         }
         let is_link = fs::symlink_metadata(&to).map(|m| m.file_type().is_symlink()).unwrap_or(false);
         if to.exists() && !is_link {
-            return " (gtk-4.0'da kendi dosyan var, GTK4'e dokunulmadı)".into();
+            return t(" (gtk-4.0'da kendi dosyan var, GTK4'e dokunulmadı)").into();
         }
         let _ = fs::remove_file(&to);
         if std::os::unix::fs::symlink(&from, &to).is_ok() {
@@ -330,7 +331,7 @@ pub fn set_wallpaper(img: &Path) -> Result<String, String> {
     write(&path, &out)?;
     let _ = fs::write(home().join(".cache/wallpapers/last"), img.display().to_string());
     if std::env::var_os("TEMA_NO_EXEC").is_some() {
-        return Ok("(test) hyprpaper yeniden başlatılmadı".into());
+        return Ok(t("(test) hyprpaper yeniden başlatılmadı").into());
     }
     run_quiet("pkill", &["-x", "hyprpaper"]);
     Command::new("setsid")
@@ -338,7 +339,7 @@ pub fn set_wallpaper(img: &Path) -> Result<String, String> {
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| format!("hyprpaper başlatılamadı: {e}"))?;
+        .map_err(|e| tf("hyprpaper başlatılamadı: {}", &[&e]))?;
     Ok(img.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default())
 }
 

@@ -13,6 +13,10 @@ One GTK4 / libadwaita app (Rust) to theme a whole Hyprland desktop from a single
 
 Pick a wallpaper, a preset or an installed GTK theme, tweak colors, hit **Uygula** (Apply) — and every config follows.
 
+## Language
+
+The UI and CLI speak **Türkçe** and **English**. Pick it under *Targets → Language* (switches live), or force it with `TEMA_LANG=tr|en`. By default it follows the system locale (`tr_*` → Turkish, anything else → English).
+
 ## Palette sources
 
 - **Otomatik** — palette generated from the wallpaper (calls the AGS `theme-generator.py` so results match exactly). AGS keeps regenerating on wallpaper change.
